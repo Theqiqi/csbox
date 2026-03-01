@@ -22,6 +22,7 @@ public:
     void shutdown();
 
 private:
+    bool tryAttachProcess();
     bool updateMemory();
     void renderESP();
     void renderDebugOverlay();

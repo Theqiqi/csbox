@@ -1,5 +1,6 @@
 #include "engine/GameEngine.h"
 #include "common/Logger.h"
+#include <windows.h>
 
 // 增加无控制台编译选项（Release 模式下生效）
 #ifdef NDEBUG
@@ -7,6 +8,9 @@
 #endif
 
 int main() {
+    // 强制声明 DPI 感知，防止 Windows 自动缩放导致调整分辨率时 Overlay 坐标严重偏移
+    SetProcessDPIAware();
+
     using namespace csbox;
 
     LOGI("CSBox 启动中...");

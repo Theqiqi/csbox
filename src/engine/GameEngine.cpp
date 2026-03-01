@@ -16,35 +16,42 @@ GameEngine::GameEngine() {
 GameEngine::~GameEngine() {
 }
 
-bool GameEngine::init() {
-    LOGI("GameEngine 初始化 (Calibration Build)...");
-
+bool GameEngine::tryAttachProcess() {
+    m_process->close();
+    
     if (!m_process->findWindow("Valve001", "Counter-Strike")) {
-        LOGE("未找到 CS1.6 窗口");
         return false;
     }
 
     if (!m_process->openProcess()) {
-        LOGE("无法打开进程句柄");
         return false;
     }
 
     if (!m_process->refreshModules()) {
-        LOGE("无法刷新模块基址");
         return false;
     }
 
     m_hwBase = m_process->getModuleBase("hw.dll");
     if (!m_hwBase) {
-        LOGE("找不到 hw.dll");
         return false;
     }
-    LOGI("hw.dll 基址: 0x%08X", m_hwBase);
 
     m_reader = std::make_unique<memory::MemoryReader>(static_cast<HANDLE>(m_process->getHandle()));
+    m_windowUtils->setWindowHandle(m_process->getWindow());
+    
+    LOGI("成功附加到 CS1.6 进程, hw.dll 基址: 0x%08X", m_hwBase);
+    return true;
+}
+
+bool GameEngine::init() {
+    LOGI("GameEngine 初始化 (Calibration Build)...");
+
+    // 不阻塞地尝试附加，即使失败也先创建 Overlay
+    if (!tryAttachProcess()) {
+        LOGW("启动时未找到 CS1.6 进程，等待游戏启动...");
+    }
 
     window::ClientAreaInfo gameInfo;
-    m_windowUtils->setWindowHandle(m_process->getWindow());
     gameInfo = m_windowUtils->getClientInfo();
     m_screenWidth = (gameInfo.width > 0) ? gameInfo.width : 800;
     m_screenHeight = (gameInfo.height > 0) ? gameInfo.height : 600;
@@ -72,14 +79,19 @@ void GameEngine::run() {
     while (!WindowShouldClose() && m_isRunning) {
         window::ClientAreaInfo gameInfo = m_windowUtils->getClientInfo();
         if (gameInfo.width > 0 && gameInfo.height > 0) {
-            // 只使用系统原生的 SetWindowPos 来同步位置和大小，
-            // 避免调用 Raylib 的 SetWindowSize 导致窗口被强制居中或偏移
+            // 先调整 HWND 位置和尺寸
             m_windowUtils->syncOverlayPosition(GetWindowHandle());
             
             if (gameInfo.width != m_screenWidth || gameInfo.height != m_screenHeight) {
+                // 必须通知 Raylib 内部改变 Viewport（否则会导致画面拉伸、位置严重错位）
+                SetWindowSize(gameInfo.width, gameInfo.height);
+                
+                // 再次确保位置没有被 Raylib 默认居中策略覆盖
+                m_windowUtils->syncOverlayPosition(GetWindowHandle());
+                
                 m_screenWidth = gameInfo.width;
                 m_screenHeight = gameInfo.height;
-                // 更新投影转换矩阵的屏幕大小
+                // 更新 W2S 投影尺寸
                 m_w2s.setScreenSize((float)m_screenWidth, (float)m_screenHeight);
             }
         }
@@ -88,6 +100,14 @@ void GameEngine::run() {
         ClearBackground(::Color{0, 0, 0, 0});
 
         // 即使内存更新失败，也要运行绘制逻辑（准星等）
+        if (!m_ctx.isGameRunning) {
+            static int retryCounter = 0;
+            if (++retryCounter >= 60) {
+                tryAttachProcess();
+                retryCounter = 0;
+            }
+        }
+
         updateMemory();
         renderESP();
         renderDebugOverlay();
@@ -97,6 +117,11 @@ void GameEngine::run() {
 }
 
 bool GameEngine::updateMemory() {
+    if (!m_reader || !m_reader->isValid()) {
+        m_ctx.isGameRunning = false;
+        return false;
+    }
+
     // 1. Matrix
     uintptr_t matrixAddress = m_hwBase + 0xE956A0;
     if (!m_reader->readViewMatrix(matrixAddress, m_ctx.viewMatrix.data())) return false;
@@ -104,7 +129,12 @@ bool GameEngine::updateMemory() {
 
     // 2. Local Player
     uintptr_t playerBase = 0;
-    if (!m_reader->read(m_hwBase + 0x7BBD9C, playerBase) || !playerBase) return false;
+    if (!m_reader->read(m_hwBase + 0x7BBD9C, playerBase) || !playerBase) {
+        m_ctx.isGameRunning = false;
+        return false;
+    }
+    
+    m_ctx.isGameRunning = true;
 
     // Doc says Y=88, X=8C, Z=90, but testing shows X=88, Y=8C is closer.
     m_reader->read(playerBase + 0x88, m_ctx.localPlayer.position.x);
@@ -181,7 +211,7 @@ void GameEngine::renderESP() {
         footWorld.z -= 36.0f;
         math::Vector3 headWorld = entity.position;
         // 还原上一版本的完美头顶高度
-        headWorld.z += 36.0f;
+        headWorld.z += 28.0f;
 
         auto foot = m_w2s.calculate(footWorld);
         auto head = m_w2s.calculate(headWorld);
@@ -191,8 +221,7 @@ void GameEngine::renderESP() {
         float h = fabsf(foot.y - head.y);
         if (h < 5.0f) continue;
         
-        // 动态方框尺寸：基于高度等比缩放
-        float w = h * 0.65f;
+        float w = h * 0.7f;
         float boxX = foot.x - w / 2.0f;
         float boxY = (head.y < foot.y) ? head.y : foot.y;
         
@@ -213,6 +242,10 @@ void GameEngine::renderESP() {
 }
 
 void GameEngine::renderDebugOverlay() {
+    if (!m_ctx.isGameRunning) {
+        return; // 不在游戏中时，不显示黄字和准星
+    }
+
     int enemyCount = 0;
     for (int i = 0; i < m_ctx.entities.count; ++i) {
         if (m_ctx.entities.entities[i].isValid && 
