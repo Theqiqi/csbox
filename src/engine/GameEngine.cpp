@@ -136,20 +136,27 @@ bool GameEngine::updateMemory() {
         return false;
     }
     
-    // 只有读取到有效的玩家基址，才认为在对局中
+    uintptr_t lpExtra = 0;
+    if (!m_reader->read(playerBase + 0x7C, lpExtra) || lpExtra == 0) {
+        return false;
+    }
+
+    int team = 0;
+    m_reader->read(lpExtra + 0x1C8, team);
+    m_ctx.localPlayer.team = static_cast<game::Team>(team);
+
+    // 只有在恐怖分子(1)或反恐精英(2)阵营时，才认为在对局中
+    // 这能有效解决在菜单界面显示准星和黄字的问题
+    if (team != 1 && team != 2) {
+        return false;
+    }
+    
     m_ctx.isGameRunning = true;
 
     // Doc says Y=88, X=8C, Z=90, but testing shows X=88, Y=8C is closer.
     m_reader->read(playerBase + 0x88, m_ctx.localPlayer.position.x);
     m_reader->read(playerBase + 0x8C, m_ctx.localPlayer.position.y);
     m_reader->read(playerBase + 0x90, m_ctx.localPlayer.position.z);
-
-    uintptr_t lpExtra = 0;
-    if (m_reader->read(playerBase + 0x7C, lpExtra) && lpExtra != 0) {
-        int team = 0;
-        m_reader->read(lpExtra + 0x1C8, team);
-        m_ctx.localPlayer.team = static_cast<game::Team>(team);
-    }
 
     // 3. Entities
     for (int i = 0; i < game::EntityData::MAX_ENTITIES; ++i) {
