@@ -117,8 +117,11 @@ void GameEngine::run() {
 }
 
 bool GameEngine::updateMemory() {
+    // 每一帧开始前，先假设不在对局中并清空计数，防止旧数据残留
+    m_ctx.isGameRunning = false;
+    m_ctx.entities.count = 0;
+
     if (!m_reader || !m_reader->isValid()) {
-        m_ctx.isGameRunning = false;
         return false;
     }
 
@@ -130,10 +133,10 @@ bool GameEngine::updateMemory() {
     // 2. Local Player
     uintptr_t playerBase = 0;
     if (!m_reader->read(m_hwBase + 0x7BBD9C, playerBase) || !playerBase) {
-        m_ctx.isGameRunning = false;
         return false;
     }
     
+    // 只有读取到有效的玩家基址，才认为在对局中
     m_ctx.isGameRunning = true;
 
     // Doc says Y=88, X=8C, Z=90, but testing shows X=88, Y=8C is closer.
