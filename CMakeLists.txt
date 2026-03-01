@@ -32,9 +32,9 @@ add_subdirectory(src/engine)
 
 # 主程序
 set(SOURCES src/main.cpp)
-add_executable(csbox_calib ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES})
 
-target_link_libraries(csbox_calib PRIVATE
+target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
     glfw
     opengl32 gdi32 winmm shell32 user32
@@ -42,12 +42,12 @@ target_link_libraries(csbox_calib PRIVATE
 )
 
 if(MSVC)
-    target_compile_options(csbox_calib PRIVATE /utf-8)
+    target_compile_options(csbox PRIVATE /utf-8)
 endif()
 
 # Keep console for debugging
 if(WIN32)
-    # target_link_options(csbox_final PRIVATE "/SUBSYSTEM:WINDOWS" "/ENTRY:mainCRTStartup")
+     target_link_options(${PROJECT_NAME} PRIVATE "/SUBSYSTEM:WINDOWS" "/ENTRY:mainCRTStartup")
 endif()
 
 # 测试

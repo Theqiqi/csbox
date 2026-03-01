@@ -28,7 +28,8 @@ bool MemoryReader::readViewMatrix(uintptr_t baseAddress, float matrix[16]) {
         return false;
     }
 
-    LOGD("View matrix read successfully from 0x%016X", baseAddress);
+    // 去除循环打印
+    // LOGD("View matrix read successfully from 0x%016X", baseAddress);
     return true;
 }
 

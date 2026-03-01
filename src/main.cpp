@@ -1,6 +1,11 @@
 #include "engine/GameEngine.h"
 #include "common/Logger.h"
 
+// 增加无控制台编译选项（Release 模式下生效）
+#ifdef NDEBUG
+//#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#endif
+
 int main() {
     using namespace csbox;
 

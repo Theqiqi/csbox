@@ -35,9 +35,6 @@ ClientAreaInfo WindowUtils::getClientInfo() {
     }
     
     bool isMinimized = IsIconic(hwnd);
-    
-    // 只要游戏窗口存在且未最小化就显示 overlay
-    // 不限制必须是前台窗口，否则焦点离开游戏时准星/方框会消失
     info.isVisible = !isMinimized;
     
     RECT cRect;
@@ -59,9 +56,13 @@ void WindowUtils::syncOverlayPosition(void* overlayHandle) {
     }
     
     HWND myHwnd = static_cast<HWND>(overlayHandle);
+    HWND gameHwnd = static_cast<HWND>(m_windowHandle);
     ClientAreaInfo info = getClientInfo();
     
-    if (info.width > 0 && info.isVisible) {
+    HWND foregroundHwnd = GetForegroundWindow();
+    bool isForeground = (foregroundHwnd == gameHwnd || foregroundHwnd == myHwnd);
+    
+    if (info.width > 0 && info.isVisible && isForeground) {
         if (!IsWindowVisible(myHwnd)) {
             ShowWindow(myHwnd, SW_SHOWNOACTIVATE);
         }

@@ -49,7 +49,8 @@ bool GameEngine::init() {
     m_screenWidth = (gameInfo.width > 0) ? gameInfo.width : 800;
     m_screenHeight = (gameInfo.height > 0) ? gameInfo.height : 600;
 
-    SetConfigFlags(FLAG_WINDOW_UNDECORATED | FLAG_WINDOW_TRANSPARENT | FLAG_WINDOW_MOUSE_PASSTHROUGH);
+    // FLAG_WINDOW_RESIZABLE 允许底层的 GLFW/HWND 接收尺寸变化并调整帧缓冲区
+    SetConfigFlags(FLAG_WINDOW_UNDECORATED | FLAG_WINDOW_TRANSPARENT | FLAG_WINDOW_MOUSE_PASSTHROUGH | FLAG_WINDOW_RESIZABLE);
     InitWindow(m_screenWidth, m_screenHeight, "CSBox Calibration Overlay");
     SetTargetFPS(60);
 
@@ -71,13 +72,16 @@ void GameEngine::run() {
     while (!WindowShouldClose() && m_isRunning) {
         window::ClientAreaInfo gameInfo = m_windowUtils->getClientInfo();
         if (gameInfo.width > 0 && gameInfo.height > 0) {
+            // 只使用系统原生的 SetWindowPos 来同步位置和大小，
+            // 避免调用 Raylib 的 SetWindowSize 导致窗口被强制居中或偏移
+            m_windowUtils->syncOverlayPosition(GetWindowHandle());
+            
             if (gameInfo.width != m_screenWidth || gameInfo.height != m_screenHeight) {
-                SetWindowSize(gameInfo.width, gameInfo.height);
                 m_screenWidth = gameInfo.width;
                 m_screenHeight = gameInfo.height;
+                // 更新投影转换矩阵的屏幕大小
                 m_w2s.setScreenSize((float)m_screenWidth, (float)m_screenHeight);
             }
-            m_windowUtils->syncOverlayPosition(GetWindowHandle());
         }
 
         BeginDrawing();
@@ -102,7 +106,7 @@ bool GameEngine::updateMemory() {
     uintptr_t playerBase = 0;
     if (!m_reader->read(m_hwBase + 0x7BBD9C, playerBase) || !playerBase) return false;
 
-    // Doc says Y=88, X=8C, Z=90, but CS1.6 is actually X, Y, Z sequentially
+    // Doc says Y=88, X=8C, Z=90, but testing shows X=88, Y=8C is closer.
     m_reader->read(playerBase + 0x88, m_ctx.localPlayer.position.x);
     m_reader->read(playerBase + 0x8C, m_ctx.localPlayer.position.y);
     m_reader->read(playerBase + 0x90, m_ctx.localPlayer.position.z);
@@ -129,8 +133,11 @@ bool GameEngine::updateMemory() {
         uintptr_t extra = 0;
         if (!m_reader->read(entityBase + 0x7C, extra) || extra == 0) continue;
 
+        uintptr_t ammoPtr = 0;
+        if (!m_reader->read(extra + 0x5D4, ammoPtr) || ammoPtr == 0) continue;
+
         int ammo = 0;
-        if (!m_reader->read(extra + 0x6A0, ammo)) continue; 
+        if (!m_reader->read(ammoPtr + 0xCC, ammo)) continue;
 
         int targetIdx = validCount % game::EntityData::MAX_ENTITIES;
         game::Entity& entity = m_ctx.entities.entities[targetIdx];
@@ -150,7 +157,7 @@ bool GameEngine::updateMemory() {
         m_reader->read(extra + 0x1C8, team);
         entity.team = static_cast<game::Team>(team);
 
-        if (entity.health > 0) {
+        if (entity.health > 0 && (team == 1 || team == 2)) {
             entity.isValid = true;
             validCount++;
         }
@@ -170,8 +177,10 @@ void GameEngine::renderESP() {
         if (m_ctx.localPlayer.position.distanceTo(entity.position) < 1.0f) continue;
 
         math::Vector3 footWorld = entity.position;
+        // 还原上一版本的完美脚底贴合高度
         footWorld.z -= 36.0f;
         math::Vector3 headWorld = entity.position;
+        // 还原上一版本的完美头顶高度
         headWorld.z += 36.0f;
 
         auto foot = m_w2s.calculate(footWorld);
@@ -182,19 +191,39 @@ void GameEngine::renderESP() {
         float h = fabsf(foot.y - head.y);
         if (h < 5.0f) continue;
         
-        float w = h * 0.7f;
+        // 动态方框尺寸：基于高度等比缩放
+        float w = h * 0.65f;
         float boxX = foot.x - w / 2.0f;
         float boxY = (head.y < foot.y) ? head.y : foot.y;
         
-        m_renderer->drawESPBox({boxX, boxY, w, h}, render::Color{255, 0, 0, 255}, 1.5f);
-        m_renderer->drawHealthBar({boxX, boxY, w, h}, entity.health);
-        m_renderer->drawDistance(foot.x, foot.y + 2.0f, m_ctx.localPlayer.position.distanceTo(entity.position) * 0.0254f);
+        // 动态方框粗细：近处变粗，远处变细（近大远小）
+        float distance = m_ctx.localPlayer.position.distanceTo(entity.position);
+        float lineThickness = 1.0f;
+        if (distance < 300.0f) lineThickness = 2.0f;
+        else if (distance < 600.0f) lineThickness = 1.5f;
+
+        render::Color boxColor = (entity.team == m_ctx.localPlayer.team) ? 
+            m_renderer->getConfig().teammateColor : m_renderer->getConfig().enemyColor;
+
+        m_renderer->drawESPBox({boxX, boxY, w, h}, boxColor, lineThickness);
+        // 注释掉血量条，去除用户提到的“绿色竖线”
+        // m_renderer->drawHealthBar({boxX, boxY, w, h}, entity.health);
+        m_renderer->drawDistance(foot.x, foot.y + 2.0f, distance * 0.0254f);
     }
 }
 
 void GameEngine::renderDebugOverlay() {
+    int enemyCount = 0;
+    for (int i = 0; i < m_ctx.entities.count; ++i) {
+        if (m_ctx.entities.entities[i].isValid && 
+            m_ctx.entities.entities[i].team != game::Team::None && 
+            m_ctx.entities.entities[i].team != m_ctx.localPlayer.team) {
+            enemyCount++;
+        }
+    }
+
     char buf[128];
-    snprintf(buf, sizeof(buf), "FPS: %d | Entities: %d | MyTeam: %d", GetFPS(), m_ctx.entities.count, (int)m_ctx.localPlayer.team);
+    snprintf(buf, sizeof(buf), "FPS: %d | Enemies: %d | MyTeam: %d", GetFPS(), enemyCount, (int)m_ctx.localPlayer.team);
     m_renderer->drawText(buf, 10, 10, 16, render::Color{255, 255, 0, 255});
 
     // 准星

@@ -72,10 +72,10 @@ void Renderer::drawHealthBar(const ESPBox& box, int health) {
     if (!m_initialized) return;
     if (health <= 0) return;
 
-    // 缩窄血量条，避免遮挡
-    float barWidth = 2.0f;
+    // 缩窄血量条，避免遮挡，增加一点间距
+    float barWidth = 3.0f;
     float barHeight = box.height;
-    float barX = box.x - barWidth - 4.0f;
+    float barX = box.x - barWidth - 6.0f;
     float barY = box.y;
 
     float healthRatio = static_cast<float>(health) / 100.0f;
