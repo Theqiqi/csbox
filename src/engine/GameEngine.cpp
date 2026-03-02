@@ -75,6 +75,10 @@ bool GameEngine::init() {
     // 初始置顶
     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
+    // 设置窗口显示亲和性：防止截图软件（以及反作弊截图）捕捉到 Overlay 窗口
+    // WDA_EXCLUDEFROMCAPTURE (0x00000011) 会使窗口在截图中完全透明或不可见
+    SetWindowDisplayAffinity(hwnd, 0x00000011);
+
     if (!m_renderer->init(m_screenWidth, m_screenHeight)) {
         LOGE("渲染器初始化失败");
         return false;
