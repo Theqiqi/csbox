@@ -117,9 +117,12 @@ void GameEngine::run() {
 }
 
 bool GameEngine::updateMemory() {
-    // 每一帧开始前，先假设不在对局中并清空计数，防止旧数据残留
+    // 每一帧开始前，先假设不在对局中并清空所有实体状态，防止旧数据（方框）残留
     m_ctx.isGameRunning = false;
     m_ctx.entities.count = 0;
+    for (int i = 0; i < game::EntityData::MAX_ENTITIES; ++i) {
+        m_ctx.entities.entities[i].isValid = false;
+    }
 
     if (!m_reader || !m_reader->isValid()) {
         return false;
@@ -159,10 +162,6 @@ bool GameEngine::updateMemory() {
     m_reader->read(playerBase + 0x90, m_ctx.localPlayer.position.z);
 
     // 3. Entities
-    for (int i = 0; i < game::EntityData::MAX_ENTITIES; ++i) {
-        m_ctx.entities.entities[i].isValid = false;
-    }
-
     int validCount = 0;
     for (int i = 1; i <= 32; ++i) {
         // CS1.6 中 cl_entity_t 大小是 0x324 (即 804 字节)。
@@ -207,6 +206,8 @@ bool GameEngine::updateMemory() {
 }
 
 void GameEngine::renderESP() {
+    if (!m_ctx.isGameRunning) return;
+
     for (int i = 0; i < game::EntityData::MAX_ENTITIES; ++i) {
         auto& entity = m_ctx.entities.entities[i];
         if (!entity.isValid) continue;
