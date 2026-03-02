@@ -23,5 +23,29 @@ vcpkg_installed/
 vcpkg-overlays/
 .idea/
 CMakeUserPresets.json
-.idea
-out
+out/
+release_package/
+*.zip
+*.7z
+*.rar
+*.msi
+*.cab
+*.msu
+*.iso
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Visual Studio files
+x64/
+Debug/
+Release/
+ipch/
+*.opensdf
+*.sdf
+*.cache
+*.suo
+*.user
+*.userosscache
+*.sln.docupdates
