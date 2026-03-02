@@ -60,6 +60,9 @@ void WindowUtils::syncOverlayPosition(void* overlayHandle) {
     ClientAreaInfo info = getClientInfo();
     
     HWND foregroundHwnd = GetForegroundWindow();
+    
+    // 恢复前台判定：只有当游戏是前台，或者 Overlay 正在被操作时才显示
+    // 这样 Alt-Tab 切换到别的程序时，外挂方框会自动隐藏，不会遮挡其他程序
     bool isForeground = (foregroundHwnd == gameHwnd || foregroundHwnd == myHwnd);
     
     if (info.width > 0 && info.isVisible && isForeground) {
@@ -67,7 +70,8 @@ void WindowUtils::syncOverlayPosition(void* overlayHandle) {
             ShowWindow(myHwnd, SW_SHOWNOACTIVATE);
         }
         
-        SetWindowPos(myHwnd, HWND_TOPMOST, info.x, info.y, info.width, info.height, SWP_NOACTIVATE);
+        SetWindowPos(myHwnd, HWND_TOPMOST, info.x, info.y, info.width, info.height, 
+            SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
     } else {
         if (IsWindowVisible(myHwnd)) {
             ShowWindow(myHwnd, SW_HIDE);

@@ -62,8 +62,18 @@ bool GameEngine::init() {
     SetTargetFPS(60);
 
     HWND hwnd = (HWND)GetWindowHandle();
-    SetWindowLongPtr(hwnd, GWL_EXSTYLE, GetWindowLongPtr(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED | WS_EX_TRANSPARENT);
-    SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
+    
+    // 设置为 WS_POPUP (无边框弹出窗口样式)，这在全屏下兼容性最好
+    SetWindowLongPtr(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+    
+    // 增加 WS_EX_TOPMOST, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW
+    SetWindowLongPtr(hwnd, GWL_EXSTYLE, WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW);
+    
+    // 强制使用 LWA_ALPHA，不再使用 ColorKey，增加透明稳定性
+    SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
+    
+    // 初始置顶
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
     if (!m_renderer->init(m_screenWidth, m_screenHeight)) {
         LOGE("渲染器初始化失败");
