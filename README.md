@@ -1,5 +1,7 @@
 # CSBox - CS1.6 外部 ESP 学习研究工具
 
+[English Version (英文版)](doc/README_EN.md)
+
 本仓库包含一个用于 Counter-Strike 1.6 的外部 ESP（Extra Sensory Perception）原型工具。本项目旨在研究 Windows 图形驱动、内存读取技术以及 World-to-Screen (W2S) 算法，仅供学习与技术交流使用。
 
 ## ⚠️ 免责声明 (Legal Disclaimer)
