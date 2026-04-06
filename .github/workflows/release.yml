@@ -1,0 +1,63 @@
+name: Build and Release Test (Presets Mode)
+
+on:
+  push:
+    branches: [ feat/gh-actions ] # 仅在此分支测试
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # 1. 自动安装 Ninja (你的 Preset 指定了 Ninja)
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@master
+
+      # 2. 设置 MSVC 环境 (必须指定 x86)
+      - name: Setup MSVC (x86)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      # 3. 准备 vcpkg
+      - name: Setup vcpkg
+        run: |
+          if (!(Test-Path "vcpkg")) {
+            git clone https://github.com/microsoft/vcpkg.git
+          }
+          .\vcpkg\bootstrap-vcpkg.bat
+          echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $GITHUB_ENV
+
+      # 4. 使用你的 Preset 进行 Configure
+      # 对应你的 configurePresets[4]: msvc-release-x86
+      - name: Configure CMake via Preset
+        run: |
+          cmake --preset msvc-release-x86
+
+      # 5. 使用你的 Preset 进行 Build
+      - name: Build via Preset
+        run: cmake --build --preset release-x86
+
+      # 6. 【测试阶段】上传到网页附件 (始终运行，方便你每推一次都能下载验证)
+      - name: Upload Test Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: csbox-x86-static
+          path: out/build/msvc-release-x86/csbox.exe
+          retention-days: 1
+
+      # 7. 【正式发布】只有推 v* 标签时才会执行此步
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') # 核心逻辑：非标签推送直接跳过
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/build/msvc-release-x86/csbox.exe
+          generate_release_notes: true # 自动根据提交记录生成说明
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
