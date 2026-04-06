@@ -16,7 +16,7 @@ This repository contains an external ESP (Extra Sensory Perception) prototype to
 *   **External Overlay**: High-performance transparent window rendering based on Raylib.
 *   **W2S Projection Algorithm**: Supports automatic detection of Column-Major and Row-Major matrices.
 *   **Smart Sync**: Automatically detects game window resolution changes and positions to ensure boxes do not offset.
-*   **Anti-Screenshot Protection**: Integrated `SetWindowDisplayAffinity` technology to make the overlay invisible in screenshots.
+*   **Anti-Screenshot Protection**: Integrated `SetWindowDisplayAffinity` technology to make the overlay invisible in screenshots(Supports manual toggle via parameters).
 *   **Auto-Attach**: Automatically detects and re-attaches to the process after a game restart.
 
 ## Technical Architecture
@@ -37,6 +37,16 @@ This repository contains an external ESP (Extra Sensory Perception) prototype to
 1.  Ensure CS 1.6 is launched (Recommended startup parameters: `-window -noborder`).
 2.  Run `build_release32.bat` for Release x86 compilation.
 3.  After compilation, find `csbox.exe` in the `bin/Release` directory and run it.
+    * Normal Run: Double-click to run. The program runs silently in the background (no console window).
+    * Compatibility Mode: To allow OBS/Sunshine/Screenshot capture, run with csbox.exe --no-anti-screenshot.
+
+### Command-line Options
+This tool is a Windows GUI application and does not display a console window by default. Use arguments to adjust behavior:
+
+* `-h, --help`: Pop up a help dialog showing version and argument descriptions.
+* `--no-anti-screenshot`: Disable anti-screenshot protection (allows OBS, Sunshine, and other capture software).
+
+>**Note**: By default, `WDA_EXCLUDEFROMCAPTURE` is enabled for privacy protection.
 
 ## License
 

@@ -16,7 +16,7 @@
 *   **外部绘制 (External Overlay)**：基于 Raylib 的高性能透明窗口渲染。
 *   **W2S 投影算法**：支持 Column-Major 和 Row-Major 矩阵自动判定。
 *   **智能同步**：自动检测游戏窗口分辨率变化及位置，确保方框不偏移。
-*   **防截图保护**：集成 `SetWindowDisplayAffinity` 技术，使 Overlay 在截图中不可见。
+*   **防截图保护**：集成 `SetWindowDisplayAffinity` 技术，使 Overlay 在截图中不可见（支持通过参数手动关闭）。
 *   **自动附加**：游戏重启后可自动重新检测并附加进程。
 
 ## 技术架构
@@ -37,6 +37,17 @@
 1.  确保 CS 1.6 已启动（建议使用 `-window -noborder` 启动参数）。
 2.  运行 `build_release32.bat` 进行 Release x86 编译。
 3.  编译完成后，在 `bin/Release` 目录下找到 `csbox.exe` 并运行。
+    * **普通运行**：双击即可，程序在后台静默运行。
+    * **兼容模式**：若需直播或录屏，请使用 `csbox.exe --no-anti-screenshot`。
+    
+## 命令行参数 (Command-line Options)
+
+本工具为 Windows GUI 程序，启动后**不显示控制台黑框**。如需调整行为，请通过命令行或快捷方式添加参数：
+
+* `-h, --help`：弹出帮助对话框，显示版本及参数说明。
+* `--no-anti-screenshot`：**禁用**反截屏保护（允许 OBS、阳光 Sunshine、截图软件正常采集画面）。
+
+> **注意**：默认情况下，程序会启动 `WDA_EXCLUDEFROMCAPTURE` 保护隐私。
 
 ## 许可证 (License)
 
