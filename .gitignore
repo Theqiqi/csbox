@@ -49,3 +49,7 @@ ipch/
 *.user
 *.userosscache
 *.sln.docupdates
+
+# CLion build directories
+cmake-build-*/
+.tmp.swp

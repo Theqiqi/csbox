@@ -8,6 +8,7 @@
 #include "game/GameContext.h"
 #include "render/Renderer.h"
 #include "WindowUtils/WindowUtils.h"
+#include "common/Config.h"
 
 namespace csbox {
 namespace engine {
@@ -17,7 +18,7 @@ public:
     GameEngine();
     ~GameEngine();
 
-    bool init();
+    bool init(const common::AppConfig& config);
     void run();
     void shutdown();
 
@@ -40,6 +41,7 @@ private:
     int m_screenWidth = 1920;
     int m_screenHeight = 1080;
     bool m_isRunning = false;
+    common::AppConfig m_config;
 };
 
 } // namespace engine

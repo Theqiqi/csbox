@@ -12,7 +12,6 @@ GameEngine::GameEngine() {
     m_renderer = std::make_unique<render::Renderer>();
     m_windowUtils = std::make_unique<window::WindowUtils>();
 }
-
 GameEngine::~GameEngine() {
 }
 
@@ -43,8 +42,10 @@ bool GameEngine::tryAttachProcess() {
     return true;
 }
 
-bool GameEngine::init() {
+bool GameEngine::init(const common::AppConfig& config) {
+
     LOGI("GameEngine 初始化 (Calibration Build)...");
+    m_config = config; // 保存配置
 
     // 不阻塞地尝试附加，即使失败也先创建 Overlay
     if (!tryAttachProcess()) {
@@ -77,8 +78,15 @@ bool GameEngine::init() {
 
     // 设置窗口显示亲和性：防止截图软件（以及反作弊截图）捕捉到 Overlay 窗口
     // WDA_EXCLUDEFROMCAPTURE (0x00000011) 会使窗口在截图中完全透明或不可见
-    SetWindowDisplayAffinity(hwnd, 0x00000011);
-
+    if (config.enableAntiScreenshot) {
+        // 0x00000011 是 WDA_EXCLUDEFROMCAPTURE
+        SetWindowDisplayAffinity(hwnd, 0x00000011);
+        LOGI("Anti-Screenshot: ENABLED");
+    } else {
+        // 0x00000000 是 WDA_NONE
+        SetWindowDisplayAffinity(hwnd, 0x00000000);
+        LOGI("Anti-Screenshot: DISABLED (Capture Allowed)");
+    }
     if (!m_renderer->init(m_screenWidth, m_screenHeight)) {
         LOGE("渲染器初始化失败");
         return false;
