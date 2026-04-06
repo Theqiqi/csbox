@@ -2,7 +2,9 @@ name: Build and Release Test (Presets Mode)
 
 on:
   push:
-    branches: [ feat/gh-actions ] # 仅在此分支测试
+    #branches: [ feat/gh-actions ] # 仅在此分支测试
+    tags:
+      - 'v*' # 当推送以 v 开头的标签时触发
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -44,20 +46,21 @@ jobs:
       - name: Build via Preset
         run: cmake --build --preset release-x86
 
-      # 6. 【测试阶段】上传到网页附件 (始终运行，方便你每推一次都能下载验证)
+      # 6. 【修复路径】上传到网页附件
       - name: Upload Test Binary
         uses: actions/upload-artifact@v4
         with:
           name: csbox-x86-static
-          path: out/build/msvc-release-x86/csbox.exe
+          # 核心修改：改为你日志中显示的实际路径
+          path: bin/csbox.exe
           retention-days: 1
 
-      # 7. 【正式发布】只有推 v* 标签时才会执行此步
+      # 7. 【正式发布】只有推 v* 标签时才会执行
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') # 核心逻辑：非标签推送直接跳过
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: out/build/msvc-release-x86/csbox.exe
-          generate_release_notes: true # 自动根据提交记录生成说明
+          files: bin/csbox.exe
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
